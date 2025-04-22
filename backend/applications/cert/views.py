@@ -10,15 +10,19 @@ class CertViewSet(GenericViewSet):
     def login(self, request):
         pass
 
+    @action(detail=False, methods=['GET'])
     def logout(self):
         pass
 
+    @action(detail=False, methods=['GET'])
     def get_user_info(self):
         pass
 
+    @action(detail=False, methods=['POST'])
     def change_pw(self):
         pass
 
-    def signup(self):
+    @action(detail=False, methods=['POST'])
+    def sign_up(self):
         pass
 
