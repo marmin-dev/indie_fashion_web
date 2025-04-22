@@ -1,9 +1,13 @@
 from django.shortcuts import render
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.viewsets import GenericViewSet
 
 
-class CertViewSet(viewsets.ModelViewSet):
-    def login(self):
+class CertViewSet(GenericViewSet):
+
+    @action(detail=False, methods=['POST'])
+    def login(self, request):
         pass
 
     def logout(self):
