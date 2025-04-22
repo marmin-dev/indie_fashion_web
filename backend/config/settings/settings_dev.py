@@ -10,6 +10,8 @@ os.makedirs(LOG_DIR, exist_ok=True)
 with open(".env/local.json", encoding='utf-8') as file:
     env_data = json.load(file)
 
+SECRET_KEY = f'django-insecure-{env_data["django_secret_key"]}'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
