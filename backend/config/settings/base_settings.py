@@ -27,6 +27,8 @@ DJANGO_APPS = [
 
 PROJECT_APPS = [
     'applications.cert',
+    'applications.magazine',
+    'applications.brand'
 ]
 
 INSTALLED_APPS = DJANGO_APPS + PROJECT_APPS
