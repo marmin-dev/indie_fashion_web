@@ -84,6 +84,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
@@ -100,5 +105,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 STATIC_URL = 'static/'
 
+AUTH_USER_MODEL = 'cert.IndieUser'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
