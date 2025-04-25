@@ -35,4 +35,7 @@ class IndieUser(AbstractBaseUser, TimeStampModel):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
+    def change_password(self, user, password):
+        self.password = password
+        self.save()
 

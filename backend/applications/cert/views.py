@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from applications.cert.serializers import RegisterSerializer, UserSerializer
+from applications.cert.serializers import RegisterSerializer, UserSerializer, ChangePasswordSerializer
 from applications.common.http_response_collections import NOT_AUTHORIZED
 
 
@@ -40,10 +40,6 @@ class CertViewSet(ViewSet):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['GET'])
-    def logout(self):
-        pass
-
     @action(detail=False, methods=['GET'], permission_classes=[IsAuthenticated])
     def info(self, request):
         # 내 정보 불러오기
@@ -51,9 +47,18 @@ class CertViewSet(ViewSet):
         serializer = UserSerializer(user)
         return Response(serializer.data,status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['POST'])
-    def change_pw(self):
-        pass
+    @action(detail=False, methods=['POST'], permission_classes=[IsAuthenticated])
+    def change_pw(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        permission_classes = [IsAuthenticated]
+        if serializer.is_valid():
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            return Response({'access': str(refresh.access_token),'refresh': str(refresh)})
+
+
+
+
 
 
 
