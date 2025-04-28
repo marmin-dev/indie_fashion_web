@@ -16,6 +16,12 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
+    def delete_user(self, email):
+        user = self.get(email=email)
+        user.delete()
+        return user
+
+
     def create_superuser(self, email, password, **extra_fields):
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(email, password, **extra_fields)

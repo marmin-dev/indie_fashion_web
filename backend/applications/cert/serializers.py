@@ -22,6 +22,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    # 회원 탈퇴
+    def withdraw(self, validated_data):
+        user = IndieUser.objects.delete_user(email=validated_data)
+        return user
+
     # 유저 정보 시리얼라이저
     class Meta:
         model = IndieUser

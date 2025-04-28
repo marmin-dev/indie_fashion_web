@@ -62,6 +62,13 @@ class CertViewSet(ViewSet):
             status=status.HTTP_200_OK
         )
 
+    @action(detail=False, methods=['GET'], permission_classes=[IsAuthenticated])
+    def withdraw(self, request):
+        user = request.user
+        serializer = UserSerializer(user)
+        serializer.withdraw(user)
+        return Response({"message":"Successfully Deleted"},status=status.HTTP_200_OK)
+
 
 
 
