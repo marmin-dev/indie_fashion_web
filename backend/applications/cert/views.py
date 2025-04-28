@@ -49,13 +49,18 @@ class CertViewSet(ViewSet):
 
     @action(detail=False, methods=['POST'], permission_classes=[IsAuthenticated])
     def change_pw(self, request):
-        serializer = ChangePasswordSerializer(data=request.data)
-        permission_classes = [IsAuthenticated]
-        if serializer.is_valid():
-            user = serializer.save()
-            refresh = RefreshToken.for_user(user)
-            return Response({'access': str(refresh.access_token),'refresh': str(refresh)})
-
+        # 비밀번호 변경
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                'access': str(refresh.access_token),
+                'refresh': str(refresh)
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 

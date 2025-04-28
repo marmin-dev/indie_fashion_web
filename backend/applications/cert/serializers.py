@@ -5,6 +5,7 @@ from applications.cert.models import IndieUser
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    # 회원 가입 시리얼 라이저
     password = serializers.CharField(write_only=True, required=True)
 
     class Meta:
@@ -21,18 +22,16 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    # 유저 정보 시리얼라이저
     class Meta:
         model = IndieUser
         fields = ['username', 'email']
 
 
 class ChangePasswordSerializer(serializers.Serializer):
+    # 비밀번호 변경 시리얼라이저
     old_password = serializers.CharField(write_only=True, required=True)
     new_password = serializers.CharField(write_only=True, required=True)
-
-    def validate_new_password(self, value):
-        validate_password(value)
-        return value
 
     def validate(self, attrs):
         user = self.context['request'].user
@@ -45,4 +44,3 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
-
