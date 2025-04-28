@@ -1,4 +1,3 @@
-import jwt
 from django.contrib.auth import authenticate
 from rest_framework import status
 from rest_framework.decorators import action
@@ -8,21 +7,9 @@ from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from applications.cert.authenticate import token_invalidation
 from applications.cert.serializers import RegisterSerializer, UserSerializer, ChangePasswordSerializer
 from applications.common.http_response_collections import NOT_AUTHORIZED
-
-
-def token_invalidation(refresh_token):
-    refresh_token_str = str(refresh_token)  # RefreshToken을 문자열로 변환
-    decoded_token = jwt.decode(refresh_token_str, options={"verify_signature": False})  # 서명 검증 없이 디코드
-    jti = decoded_token.get('jti')
-
-    if jti:
-        outstanding_token = OutstandingToken.objects.filter(jti=jti).first()
-        if outstanding_token:
-            BlacklistedToken.objects.get_or_create(token=outstanding_token)
-            return True
-    return False
 
 
 class CertViewSet(ViewSet):
