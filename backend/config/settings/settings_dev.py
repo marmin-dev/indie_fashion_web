@@ -51,6 +51,7 @@ LOGGING = {
             "when": "midnight", # 자정에 파일 갱신
             "backupCount": 7, # 7일간 유효
             "formatter": "verbose",
+            "delay":True
         },
         "django": {
             "class": "logging.handlers.TimedRotatingFileHandler",
@@ -58,6 +59,7 @@ LOGGING = {
             "when": "midnight", # 자정에 파일 갱신
             "backupCount": 7, # 7일간 유효
             "formatter": "verbose",
+            "delay":True
         },
     },
     "loggers": {

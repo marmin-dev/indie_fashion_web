@@ -1,9 +1,11 @@
+import jwt
 from django.contrib.auth import authenticate
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from applications.cert.serializers import RegisterSerializer, UserSerializer, ChangePasswordSerializer
@@ -11,6 +13,8 @@ from applications.common.http_response_collections import NOT_AUTHORIZED
 
 
 class CertViewSet(ViewSet):
+    def token_invalidation(self):
+        pass
 
     @action(detail=False, methods=['POST'])
     def login(self, request):
@@ -54,6 +58,7 @@ class CertViewSet(ViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         refresh = RefreshToken.for_user(user)
+        BlacklistedToken.objects.get_or_create(token=refresh)
         return Response(
             {
                 'access': str(refresh.access_token),
@@ -64,11 +69,27 @@ class CertViewSet(ViewSet):
 
     @action(detail=False, methods=['GET'], permission_classes=[IsAuthenticated])
     def withdraw(self, request):
+        # 회원 탈퇴
         user = request.user
         serializer = UserSerializer(user)
         serializer.withdraw(user)
         return Response({"message":"Successfully Deleted"},status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=['GET'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        # 로그아웃(토큰 무효화)
+        user = request.user
+        refresh_token = RefreshToken.for_user(user)
+        refresh_token_str = str(refresh_token)  # RefreshToken을 문자열로 변환
+        decoded_token = jwt.decode(refresh_token_str, options={"verify_signature": False})  # 서명 검증 없이 디코드
+        jti = decoded_token.get('jti')
 
+        if jti:
+            outstanding_token = OutstandingToken.objects.filter(token__contains=jti).first()
+            if outstanding_token:
+                BlacklistedToken.objects.get_or_create(token=outstanding_token)
+                return Response({"message":"Successfully Logout"},status=status.HTTP_200_OK)
+
+        return Response({"message":"Logout Failed"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
