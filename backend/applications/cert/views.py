@@ -65,6 +65,3 @@ class CertViewSet(ViewSet):
 
 
 
-
-
-
