@@ -12,9 +12,20 @@ from applications.cert.serializers import RegisterSerializer, UserSerializer, Ch
 from applications.common.http_response_collections import NOT_AUTHORIZED
 
 
+def token_invalidation(refresh_token):
+    refresh_token_str = str(refresh_token)  # RefreshToken을 문자열로 변환
+    decoded_token = jwt.decode(refresh_token_str, options={"verify_signature": False})  # 서명 검증 없이 디코드
+    jti = decoded_token.get('jti')
+
+    if jti:
+        outstanding_token = OutstandingToken.objects.filter(jti=jti).first()
+        if outstanding_token:
+            BlacklistedToken.objects.get_or_create(token=outstanding_token)
+            return True
+    return False
+
+
 class CertViewSet(ViewSet):
-    def token_invalidation(self):
-        pass
 
     @action(detail=False, methods=['POST'])
     def login(self, request):
@@ -80,16 +91,8 @@ class CertViewSet(ViewSet):
         # 로그아웃(토큰 무효화)
         user = request.user
         refresh_token = RefreshToken.for_user(user)
-        refresh_token_str = str(refresh_token)  # RefreshToken을 문자열로 변환
-        decoded_token = jwt.decode(refresh_token_str, options={"verify_signature": False})  # 서명 검증 없이 디코드
-        jti = decoded_token.get('jti')
-
-        if jti:
-            outstanding_token = OutstandingToken.objects.filter(token__contains=jti).first()
-            if outstanding_token:
-                BlacklistedToken.objects.get_or_create(token=outstanding_token)
-                return Response({"message":"Successfully Logout"},status=status.HTTP_200_OK)
-
+        if token_invalidation(refresh_token=refresh_token):
+            return Response({"message": "Successfully Logout"}, status=status.HTTP_200_OK)
         return Response({"message":"Logout Failed"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
