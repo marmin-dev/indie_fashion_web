@@ -14,8 +14,8 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import HttpResponse
 from applications.cert.authenticate import token_invalidation
+from applications.cert.decorators import otp_verified_required
 from applications.cert.serializers import RegisterSerializer, UserSerializer, ChangePasswordSerializer
-from applications.common.http_response_collections import NOT_AUTHORIZED
 
 
 class CertViewSet(ViewSet):
@@ -31,18 +31,20 @@ class CertViewSet(ViewSet):
 
         if user is None:
             return Response({'detail': '잘못된 이메일 또는 비밀번호입니다.'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        is_otp = False
         # OTP 인증 추가
         if otp_token:
             # 사용자에게 연결된 TOTP 디바이스가 있는지 확인
             try:
                 device = TOTPDevice.objects.get(user=user)
+
             except TOTPDevice.DoesNotExist:
                 return Response({'detail': '사용자의 OTP 디바이스가 설정되지 않았습니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # OTP 검증
             if not device.verify_token(otp_token):
                 return Response({'detail': 'OTP가 유효하지 않습니다.'}, status=status.HTTP_401_UNAUTHORIZED)
+            is_otp = True
         else:
             try:
                 device = TOTPDevice.objects.get(user=user)
@@ -53,6 +55,8 @@ class CertViewSet(ViewSet):
 
         # OTP가 성공적으로 인증되었으면 JWT 토큰 생성
         refresh = RefreshToken.for_user(user)
+        if is_otp:
+            refresh['otp_verified'] = True
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh)
@@ -95,12 +99,14 @@ class CertViewSet(ViewSet):
 
         return HttpResponse(img_io, content_type='image/png')
 
+    @otp_verified_required
     @action(detail=False, methods=['GET'], permission_classes=[IsAuthenticated])
     def info(self, request):
         # 내 정보 불러오기
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data,status=status.HTTP_200_OK)
+
 
     @action(detail=False, methods=['POST'], permission_classes=[IsAuthenticated])
     def change_pw(self, request):
