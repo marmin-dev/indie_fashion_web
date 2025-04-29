@@ -1,4 +1,10 @@
+from io import BytesIO
+
+import base64
+import pyotp
+import qrcode
 from django.contrib.auth import authenticate
+from django_otp.plugins.otp_totp.models import TOTPDevice
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -6,27 +12,51 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django.http import HttpResponse
 from applications.cert.authenticate import token_invalidation
 from applications.cert.serializers import RegisterSerializer, UserSerializer, ChangePasswordSerializer
 from applications.common.http_response_collections import NOT_AUTHORIZED
 
 
 class CertViewSet(ViewSet):
-
     @action(detail=False, methods=['POST'])
     def login(self, request):
-        # 로그인
-        username = request.data.get('email')
+        # 이메일과 비밀번호로 사용자 인증
+        email = request.data.get('email')
         password = request.data.get('password')
+        otp_token = request.data.get('otp_token')  # OTP 토큰 받기
 
-        user = authenticate(username=username, password=password)
+        # 사용자 인증
+        user = authenticate(username=email, password=password)
 
-        if user is not None:
-            refresh = RefreshToken.for_user(user)
-            return Response({'access': str(refresh.access_token),'refresh': str(refresh)})
+        if user is None:
+            return Response({'detail': '잘못된 이메일 또는 비밀번호입니다.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # OTP 인증 추가
+        if otp_token:
+            # 사용자에게 연결된 TOTP 디바이스가 있는지 확인
+            try:
+                device = TOTPDevice.objects.get(user=user)
+            except TOTPDevice.DoesNotExist:
+                return Response({'detail': '사용자의 OTP 디바이스가 설정되지 않았습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # OTP 검증
+            if not device.verify_token(otp_token):
+                return Response({'detail': 'OTP가 유효하지 않습니다.'}, status=status.HTTP_401_UNAUTHORIZED)
         else:
-            return NOT_AUTHORIZED
+            try:
+                device = TOTPDevice.objects.get(user=user)
+                if device:
+                    return Response({'detail': 'OTP가 유효하지 않습니다.'}, status=status.HTTP_401_UNAUTHORIZED)
+            except TOTPDevice.DoesNotExist:
+                pass
+
+        # OTP가 성공적으로 인증되었으면 JWT 토큰 생성
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh)
+        })
 
     @action(detail=False, methods=['POST'])
     def register(self, request):
@@ -41,6 +71,29 @@ class CertViewSet(ViewSet):
                 'access': str(refresh.access_token),
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['GET'], permission_classes=[IsAuthenticated])
+    def get_totp_qrcode(self, request):
+        user = request.user  # 이미 인증된 사용자 정보는 request.user에서 가져올 수 있습니다.
+
+        # 사용자가 TOTP 디바이스를 설정했는지 확인하고, 없다면 새로 생성
+        try:
+            device = TOTPDevice.objects.get(user=user)
+        except TOTPDevice.DoesNotExist:
+            device = user.create_totp_device()
+
+        # bin_key를 base32로 인코딩하여 secret으로 사용
+        secret = base64.b32encode(device.bin_key).decode('utf-8')  # base32로 인코딩 후 UTF-8 디코딩
+        totp = pyotp.TOTP(secret)
+        uri = totp.provisioning_uri(name=user.email, issuer_name="DemoBackend")  # QR 코드 URI 생성
+        img = qrcode.make(uri)
+
+        # 이미지 IO로 변환
+        img_io = BytesIO()
+        img.save(img_io, 'PNG')
+        img_io.seek(0)  # 이미지의 처음부터 읽을 수 있도록 이동
+
+        return HttpResponse(img_io, content_type='image/png')
 
     @action(detail=False, methods=['GET'], permission_classes=[IsAuthenticated])
     def info(self, request):
